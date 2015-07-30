@@ -1,0 +1,4 @@
+*.pyc
+/build
+/dist
+/frasco_users_ldap.egg-info
