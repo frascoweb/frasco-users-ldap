@@ -71,7 +71,7 @@ class UsersLdapFeature(Feature):
             self.connect(bind=False).simple_bind_s(dn, password)
             return self._get_or_create_user_from_ldap(dn, attrs, conn=conn)
         except ldap.LDAPError, e:
-            current_app.logger.error(e)
+            current_app.log_exception(e)
 
     @pass_feature('users')
     def _get_or_create_user_from_ldap(self, dn, attrs, users, conn=None):
