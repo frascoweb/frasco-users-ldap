@@ -1,4 +1,4 @@
-from frasco import Feature, action, current_app, pass_feature, copy_extra_feature_options, ContextExitException
+from frasco import Feature, action, current_app, pass_feature, copy_extra_feature_options, ContextExitException, signal
 import ldap
 from ldap.filter import escape_filter_chars
 
@@ -22,6 +22,9 @@ class UsersLdapFeature(Feature):
                 "track_uuid": False,
                 "track_uuid_attr": "ldap_uuid"}
 
+    ldap_login = signal('users_ldap_login')
+    ldap_signup = signal('users_ldap_signup')
+
     def init_app(self, app):
         app.features.users.add_authentification_handler(self.authentify)
         if self.options['track_uuid']:
@@ -41,19 +44,20 @@ class UsersLdapFeature(Feature):
             conn.start_tls_s()
         return conn
 
-    def search_user(self, id, conn=None):
+    def search_objects(self, base_dn, filter, conn=None):
         if not conn:
             conn = self.connect()
+        return conn.search_s(base_dn, ldap.SCOPE_SUBTREE, filter)
+
+    def search_user(self, id, conn=None):
         filter = self.options['user_filter'] % {'user': escape_filter_chars(id)}
-        rs = conn.search_s(self.options['user_dn'], ldap.SCOPE_SUBTREE, filter)
+        rs = self.search_objects(self.options['user_dn'], filter, conn)
         if rs:
             return rs[0]
 
     def search_group(self, id, conn=None):
-        if not conn:
-            conn = self.connect()
         filter = self.options['group_filter'] % {'group': escape_filter_chars(id)}
-        rs = conn.search_s(self.options['group_dn'], ldap.SCOPE_SUBTREE, filter)
+        rs = self.search_objects(self.options['group_dn'], filter, conn)
         if rs:
             return rs[0]
 
@@ -67,9 +71,11 @@ class UsersLdapFeature(Feature):
     def authentify(self, username, password):
         try:
             conn = self.connect()
-            dn, attrs = self.search_user(username, conn=conn)
-            self.connect(bind=False).simple_bind_s(dn, password)
-            return self._get_or_create_user_from_ldap(dn, attrs, conn=conn)
+            ldap_user = self.search_user(username, conn=conn)
+            if ldap_user:
+                dn, attrs = ldap_user
+                self.connect(bind=False).simple_bind_s(dn, password)
+                return self._get_or_create_user_from_ldap(dn, attrs, conn=conn)
         except ldap.LDAPError, e:
             current_app.log_exception(e)
 
@@ -82,6 +88,7 @@ class UsersLdapFeature(Feature):
             filters[users.options['email_column']] = attrs[self.options['email_attr']][0]
         user = users.query.filter(**filters).first()
         if user:
+            self.ldap_login.send(self, user=user, dn=dn, attrs=attrs, conn=conn)
             return user
 
         user = users.model()
@@ -104,4 +111,6 @@ class UsersLdapFeature(Feature):
             users.signup(user, must_provide_password=False, provider='ldap')
         except ContextExitException:
             return None
+
+        self.ldap_signup.send(self, user=user, dn=dn, attrs=attrs, conn=conn)
         return user
