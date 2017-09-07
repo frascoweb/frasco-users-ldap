@@ -19,6 +19,7 @@ class UsersLdapFeature(Feature):
                 "group_dn": '',
                 "group_filter": "(&(objectclass=groupOfNames)(cn=%(group)s))",
                 "group_member_attr": "member",
+                "group_member_uid_user_attr": None,
                 "track_uuid": False,
                 "track_uuid_attr": "ldap_uuid"}
 
@@ -103,8 +104,10 @@ class UsersLdapFeature(Feature):
 
         memberships = {}
         for flag, group_dn in self.options['group_flags'].iteritems():
+            member = getattr(user, self.options['group_member_uid_user_attr'])\
+                        if self.options['group_member_uid_user_attr'] else dn
             if group_dn not in memberships:
-                memberships[group_dn] = self.is_member_of(group_dn, dn, conn=conn)
+                memberships[group_dn] = self.is_member_of(group_dn, member, conn=conn)
             setattr(user, flag, memberships[group_dn])
 
         try:
