@@ -62,12 +62,17 @@ class UsersLdapFeature(Feature):
         if rs:
             return rs[0]
 
-    def is_member_of(self, group_dn, user_dn, member_attr=None, conn=None):
+    def is_member_of(self, group_dn, user_dn, member_attr=None, conn=None, ignore_errors=True):
         if not conn:
             conn = self.connect()
         if not member_attr:
             member_attr = self.options['group_member_attr']
-        return bool(conn.compare_s(group_dn, member_attr, user_dn))
+        try:
+            return bool(conn.compare_s(group_dn, member_attr, user_dn))
+        except ldap.LDAPError as e:
+            if not ignore_errors:
+                raise
+            return False
 
     def authentify(self, username, password):
         try:
@@ -77,7 +82,7 @@ class UsersLdapFeature(Feature):
                 dn, attrs = ldap_user
                 self.connect(bind=False).simple_bind_s(dn, password)
                 return self._get_or_create_user_from_ldap(dn, attrs, conn=conn)
-        except ldap.LDAPError, e:
+        except ldap.LDAPError as e:
             current_app.log_exception(e)
 
     @pass_feature('users')
