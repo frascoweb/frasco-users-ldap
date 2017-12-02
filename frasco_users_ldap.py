@@ -13,6 +13,8 @@ class UsersLdapFeature(Feature):
                 "user_dn": '',
                 "user_filter": "(&(objectClass=inetOrgPerson)(uid=%(user)s))",
                 "username_attr": "uid",
+                "append_username_domain": None,
+                "strip_username_domain": True,
                 "email_attr": "mail",
                 "additional_attrs": {},
                 "group_flags": {},
@@ -77,6 +79,8 @@ class UsersLdapFeature(Feature):
     def authentify(self, username, password):
         try:
             conn = self.connect()
+            if self.options['append_username_domain'] and "@" not in username:
+                username += "@" + self.options['append_username_domain']
             ldap_user = self.search_user(username, conn=conn)
             if ldap_user:
                 dn, attrs = ldap_user
@@ -97,9 +101,13 @@ class UsersLdapFeature(Feature):
             self.ldap_login.send(self, user=user, dn=dn, attrs=attrs, conn=conn)
             return user
 
+        username = attrs[self.options['username_attr']][0]
+        if "@" in username and self.options['strip_username_domain']:
+            username = username.split('@')[0]
+
         user = users.model()
         user.email = attrs[self.options['email_attr']][0]
-        user.username = attrs[self.options['username_attr']][0]
+        user.username = username
         if self.options['track_uuid']:
             setattr(user, self.options['track_uuid_attr'],
                 attrs[self.options['track_uuid']][0])
