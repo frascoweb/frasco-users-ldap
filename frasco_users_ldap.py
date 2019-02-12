@@ -95,7 +95,7 @@ class UsersLdapFeature(Feature):
         if self.options['track_uuid']:
             filters[self.options['track_uuid_attr']] = attrs[self.options['track_uuid']][0]
         else:
-            filters[users.options['email_column']] = attrs[self.options['email_attr']][0]
+            filters[users.options['email_column']] = attrs[self.options['email_attr']][0].lower()
         user = users.query.filter(**filters).first()
         if user:
             self.ldap_login.send(self, user=user, dn=dn, attrs=attrs, conn=conn)
