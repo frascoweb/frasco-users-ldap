@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='frasco-users-ldap',
-    version='0.1.7',
+    version='0.1.8',
     url='http://github.com/frascoweb/frasco-users-ldap',
     license='MIT',
     author='Maxime Bouroumeau-Fuseau',

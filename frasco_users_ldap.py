@@ -44,11 +44,11 @@ class UsersLdapFeature(Feature):
         for key, value in ldap_opts.iteritems():
             conn.set_option(getattr(ldap, 'OPT_%s' % key.upper()), value)
         if self.options['tls_cert']:
-            l.set_option(ldap.OPT_REFERRALS, 0)
-            l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-            l.set_option(ldap.OPT_X_TLS_CACERTFILE, self.options['tls_cert'])
-            l.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
-            l.set_option(ldap.OPT_X_TLS_DEMAND, True)
+            conn.set_option(ldap.OPT_REFERRALS, 0)
+            conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+            conn.set_option(ldap.OPT_X_TLS_CACERTFILE, self.options['tls_cert'])
+            conn.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
+            conn.set_option(ldap.OPT_X_TLS_DEMAND, True)
         if bind and self.options['bind_dn']:
             conn.simple_bind_s(self.options['bind_dn'].encode('utf-8'),
                 self.options['bind_password'].encode('utf-8'))
