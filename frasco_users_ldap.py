@@ -8,7 +8,12 @@ class UsersLdapFeature(Feature):
     requires = ["users"]
     defaults = {"server": None,
                 "use_tls": False,
-                "tls_cert": None,
+                "tls_cacert_dir": None,
+                "tls_cacert_file": None,
+                "tls_cert_file": None,
+                "tls_key_file": None,
+                "tls_require_cert": None,
+                "tls_demand": False,
                 "bind_dn": None,
                 "bind_password": None,
                 "user_dn": '',
@@ -36,24 +41,40 @@ class UsersLdapFeature(Feature):
                 (self.options['track_uuid_attr'], str)]))
 
     def connect(self, bind=True):
-        if self.options['tls_cert']:
+        if self.options['tls_require_cert']:
+            ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+        elif self.options['tls_require_cert'] is False:
             ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+
+        if self.options['tls_cacert_dir']:
+            ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, self.options['tls_cacert_dir'])
+        if self.options['tls_cacert_file']:
+            ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, self.options['tls_cacert_file'])
+        if self.options['tls_cert_file']:
+            ldap.set_option(ldap.OPT_X_TLS_CERTFILE, self.options['tls_cert_file'])
+        if self.options['tls_key_file']:
+            ldap.set_option(ldap.OPT_X_TLS_KEYFILE, self.options['tls_key_file'])
+
         conn = ldap.initialize(self.options['server'])
+
+        if self.options['tls_demand']:
+            conn.set_option(ldap.OPT_REFERRALS, 0)
+            conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+            conn.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
+            conn.set_option(ldap.OPT_X_TLS_DEMAND, True)
+
         ldap_opts = {}
         copy_extra_feature_options(self, ldap_opts)
         for key, value in ldap_opts.iteritems():
             conn.set_option(getattr(ldap, 'OPT_%s' % key.upper()), value)
-        if self.options['tls_cert']:
-            conn.set_option(ldap.OPT_REFERRALS, 0)
-            conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-            conn.set_option(ldap.OPT_X_TLS_CACERTFILE, self.options['tls_cert'])
-            conn.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
-            conn.set_option(ldap.OPT_X_TLS_DEMAND, True)
+
         if bind and self.options['bind_dn']:
             conn.simple_bind_s(self.options['bind_dn'].encode('utf-8'),
                 self.options['bind_password'].encode('utf-8'))
+
         if self.options['use_tls']:
             conn.start_tls_s()
+
         return conn
 
     def search_objects(self, base_dn, filter, conn=None):
