@@ -8,6 +8,7 @@ class UsersLdapFeature(Feature):
     requires = ["users"]
     defaults = {"server": None,
                 "use_tls": False,
+                "tls_cert": None,
                 "bind_dn": None,
                 "bind_password": None,
                 "user_dn": '',
@@ -35,11 +36,19 @@ class UsersLdapFeature(Feature):
                 (self.options['track_uuid_attr'], str)]))
 
     def connect(self, bind=True):
+        if self.options['tls_cert']:
+            ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         conn = ldap.initialize(self.options['server'])
         ldap_opts = {}
         copy_extra_feature_options(self, ldap_opts)
-        for key, value in ldap_opts:
-            conn.set_option(getattr(ldap, 'OPT_%s' % key), value)
+        for key, value in ldap_opts.iteritems():
+            conn.set_option(getattr(ldap, 'OPT_%s' % key.upper()), value)
+        if self.options['tls_cert']:
+            l.set_option(ldap.OPT_REFERRALS, 0)
+            l.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+            l.set_option(ldap.OPT_X_TLS_CACERTFILE, self.options['tls_cert'])
+            l.set_option(ldap.OPT_X_TLS, ldap.OPT_X_TLS_DEMAND)
+            l.set_option(ldap.OPT_X_TLS_DEMAND, True)
         if bind and self.options['bind_dn']:
             conn.simple_bind_s(self.options['bind_dn'].encode('utf-8'),
                 self.options['bind_password'].encode('utf-8'))
